@@ -6,10 +6,16 @@ import AnimatedCounter from "@/components/AnimatedCounter";
 import {
   Branch,
   ForecastPoint,
+  InsightContent,
+  InventoryAlert,
+  ShiftRecommendation,
   clearToken,
   createBranch,
   generateForecast,
+  generateWeeklyInsight,
   getForecastAccuracy,
+  getInventoryAlerts,
+  getStaffing,
   getToken,
   listBranches,
   uploadCsv,
@@ -104,6 +110,10 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [now, setNow] = useState<Date | null>(null);
+  const [inventoryAlerts, setInventoryAlerts] = useState<InventoryAlert[] | null>(null);
+  const [staffing, setStaffing] = useState<ShiftRecommendation[] | null>(null);
+  const [insight, setInsight] = useState<InsightContent | null>(null);
+  const [insightBusy, setInsightBusy] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -112,6 +122,30 @@ export default function DashboardPage() {
     }
     refreshBranches();
   }, [router]);
+
+  useEffect(() => {
+    if (!selectedBranch) return;
+    getInventoryAlerts(selectedBranch)
+      .then(setInventoryAlerts)
+      .catch(() => setInventoryAlerts(null));
+    const today = new Date().toISOString().slice(0, 10);
+    getStaffing(selectedBranch, today)
+      .then(setStaffing)
+      .catch(() => setStaffing(null));
+  }, [selectedBranch]);
+
+  async function handleGenerateInsight() {
+    if (!selectedBranch) return;
+    setInsightBusy(true);
+    try {
+      const result = await generateWeeklyInsight(selectedBranch);
+      setInsight(result);
+    } catch {
+      setInsight(null);
+    } finally {
+      setInsightBusy(false);
+    }
+  }
 
   useEffect(() => {
     setNow(new Date());
@@ -458,7 +492,11 @@ export default function DashboardPage() {
             <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-white">
               <span>📦</span> Inventory Intelligence
             </h2>
-            <p className="mb-4 text-xs text-slate-500">* Showcase data — backend service ships in a later task</p>
+            <p className="mb-4 text-xs text-slate-500">
+              {inventoryAlerts && inventoryAlerts.length > 0
+                ? "Live alerts from sales-consumption analysis"
+                : "* Showcase data — live alerts appear once a branch has 14+ days of sales history"}
+            </p>
             <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 shadow-sm">
               <table className="w-full text-sm">
                 <thead className="bg-white/5 text-left text-slate-400">
@@ -469,27 +507,45 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {INVENTORY_SHOWCASE.map((row) => (
-                    <tr key={row.item} className="border-t border-white/5">
-                      <td className="px-4 py-2.5 text-slate-200">{row.item}</td>
-                      <td className="px-4 py-2.5">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            row.level === "danger"
-                              ? "bg-rose-500/15 text-rose-300"
-                              : row.level === "warning"
-                              ? "bg-amber-500/15 text-amber-300"
-                              : row.level === "info"
-                              ? "bg-sky-500/15 text-sky-300"
-                              : "bg-emerald-500/15 text-emerald-300"
-                          }`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-300">{row.daysLeft}</td>
-                    </tr>
-                  ))}
+                  {inventoryAlerts && inventoryAlerts.length > 0
+                    ? inventoryAlerts.map((row) => (
+                        <tr key={row.sku} className="border-t border-white/5">
+                          <td className="px-4 py-2.5 text-slate-200">{row.name}</td>
+                          <td className="px-4 py-2.5">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                row.alert_type === "stockout_risk"
+                                  ? "bg-rose-500/15 text-rose-300"
+                                  : "bg-sky-500/15 text-sky-300"
+                              }`}
+                            >
+                              {row.alert_type === "stockout_risk" ? "Stockout Risk" : "Overstock"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-slate-300">{row.days_to_run_out ?? "—"}</td>
+                        </tr>
+                      ))
+                    : INVENTORY_SHOWCASE.map((row) => (
+                        <tr key={row.item} className="border-t border-white/5">
+                          <td className="px-4 py-2.5 text-slate-200">{row.item}</td>
+                          <td className="px-4 py-2.5">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                row.level === "danger"
+                                  ? "bg-rose-500/15 text-rose-300"
+                                  : row.level === "warning"
+                                  ? "bg-amber-500/15 text-amber-300"
+                                  : row.level === "info"
+                                  ? "bg-sky-500/15 text-sky-300"
+                                  : "bg-emerald-500/15 text-emerald-300"
+                              }`}
+                            >
+                              {row.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-slate-300">{row.daysLeft}</td>
+                        </tr>
+                      ))}
                 </tbody>
               </table>
             </div>
@@ -500,25 +556,37 @@ export default function DashboardPage() {
             <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-white">
               <span>👥</span> Shift Planner
             </h2>
-            <p className="mb-4 text-xs text-slate-500">* Showcase data — backend service ships in a later task</p>
+            <p className="mb-4 text-xs text-slate-500">
+              {staffing && staffing.length > 0
+                ? "Live recommendation from today's order volume"
+                : "* Showcase data — live recommendation appears once sales data exists for today"}
+            </p>
             <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={STAFFING_SHOWCASE}>
+                <BarChart
+                  data={
+                    staffing && staffing.length > 0
+                      ? staffing.map((s) => ({ shift: s.shift, recommended: s.recommended_staff_count }))
+                      : STAFFING_SHOWCASE
+                  }
+                >
                   <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
                   <XAxis dataKey="shift" tick={{ fontSize: 11, fill: "#94a3b8" }} />
                   <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
                   <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
                   <Legend />
                   <Bar dataKey="recommended" name="Recommended" radius={[6, 6, 0, 0]}>
-                    {STAFFING_SHOWCASE.map((_, i) => (
+                    {(staffing && staffing.length > 0 ? staffing : STAFFING_SHOWCASE).map((_, i) => (
                       <Cell key={i} fill="#818cf8" />
                     ))}
                   </Bar>
-                  <Bar dataKey="scheduled" name="Scheduled" radius={[6, 6, 0, 0]}>
-                    {STAFFING_SHOWCASE.map((_, i) => (
-                      <Cell key={i} fill="#475569" />
-                    ))}
-                  </Bar>
+                  {!(staffing && staffing.length > 0) && (
+                    <Bar dataKey="scheduled" name="Scheduled" radius={[6, 6, 0, 0]}>
+                      {STAFFING_SHOWCASE.map((_, i) => (
+                        <Cell key={i} fill="#475569" />
+                      ))}
+                    </Bar>
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -526,23 +594,58 @@ export default function DashboardPage() {
 
           {/* Insights */}
           <section>
-            <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-white">
-              <span>✨</span> AI-Generated Insights
-            </h2>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-white">
+                <span>✨</span> AI-Generated Insights
+              </h2>
+              <button
+                onClick={handleGenerateInsight}
+                disabled={insightBusy || !selectedBranch}
+                className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400 disabled:opacity-50"
+              >
+                {insightBusy ? "Generating..." : "Generate Weekly Summary (DeepSeek AI)"}
+              </button>
+            </div>
             <p className="mb-4 text-xs text-slate-500">
-              * Showcase data — DeepSeek (via OpenRouter) integration ships in a later task
+              {insight
+                ? "Live result from DeepSeek (via OpenRouter), with rule-based fallback if the LLM is unavailable"
+                : "* Showcase data — click the button above to generate a live AI summary for the selected branch"}
             </p>
             <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
-              <div className="space-y-3">
-                {INSIGHTS_SHOWCASE.map((insight, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-4 py-3 text-sm text-slate-200"
-                  >
-                    {insight}
+              {insight ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-4 py-3 text-sm text-slate-200">
+                    {insight.summary}
                   </div>
-                ))}
-              </div>
+                  {insight.key_risks.map((risk, i) => (
+                    <div
+                      key={`risk-${i}`}
+                      className="rounded-lg border border-rose-400/20 bg-rose-500/5 px-4 py-3 text-sm text-slate-200"
+                    >
+                      ⚠️ {risk}
+                    </div>
+                  ))}
+                  {insight.recommendations.map((rec, i) => (
+                    <div
+                      key={`rec-${i}`}
+                      className="rounded-lg border border-emerald-400/20 bg-emerald-500/5 px-4 py-3 text-sm text-slate-200"
+                    >
+                      ✅ {rec}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {INSIGHTS_SHOWCASE.map((text, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-4 py-3 text-sm text-slate-200"
+                    >
+                      {text}
+                    </div>
+                  ))}
+                </div>
+              )}
               <ResponsiveContainer width="100%" height={180} className="mt-5">
                 <AreaChart data={STAFFING_SHOWCASE.map((s, i) => ({ name: s.shift, value: 40 + i * 25 }))}>
                   <defs>

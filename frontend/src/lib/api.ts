@@ -79,6 +79,68 @@ export async function getForecastAccuracy(branchId: number) {
   );
 }
 
+export interface InventoryAlert {
+  sku: string;
+  name: string;
+  alert_type: string;
+  days_to_run_out: number | null;
+  current_stock: number;
+  suggested_reorder_qty: number;
+}
+
+export async function getInventoryAlerts(branchId: number) {
+  return request<InventoryAlert[]>(`/branches/${branchId}/inventory-alerts`);
+}
+
+export interface ShiftRecommendation {
+  shift: string;
+  date: string;
+  recommended_staff_count: number;
+  efficiency_score: number | null;
+}
+
+export async function getStaffing(branchId: number, targetDate: string) {
+  return request<ShiftRecommendation[]>(
+    `/branches/${branchId}/staffing?target_date=${targetDate}`
+  );
+}
+
+export interface InsightContent {
+  summary: string;
+  key_risks: string[];
+  recommendations: string[];
+}
+
+export async function generateWeeklyInsight(branchId: number) {
+  return request<InsightContent>(`/branches/${branchId}/insights/weekly-summary`, {
+    method: "POST",
+  });
+}
+
+export interface KpiSummary {
+  total_revenue: number;
+  order_count: number;
+  average_order_value: number;
+}
+
+export async function getKpis(branchId: number, startDate: string, endDate: string) {
+  return request<KpiSummary>(
+    `/branches/${branchId}/dashboard/kpis?start_date=${startDate}&end_date=${endDate}`
+  );
+}
+
+export interface HeatmapCell {
+  day_of_week: number;
+  hour: number;
+  revenue: number;
+}
+
+export async function getHeatmap(branchId: number, startDate: string, endDate: string) {
+  return request<HeatmapCell[]>(
+    `/branches/${branchId}/dashboard/heatmap?start_date=${startDate}&end_date=${endDate}`
+  );
+}
+
 export async function uploadCsv(branchId: number, file: File, mapping: Record<string, string>) {
   const token = getToken();
   const form = new FormData();
