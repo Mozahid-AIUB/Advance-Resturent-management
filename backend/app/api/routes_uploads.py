@@ -1,11 +1,11 @@
 import json
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.base import get_db
-from app.db.models import User
+from app.db.models import Branch, User
 from app.schemas.upload import ColumnMapping
 from app.services.csv_ingestion import parse_and_store_csv
 
@@ -17,11 +17,26 @@ MAX_FILE_BYTES = 10 * 1024 * 1024
 @router.post("/{branch_id}/uploads", status_code=status.HTTP_201_CREATED)
 async def upload_csv(
     branch_id: int,
+    request: Request,
     file: UploadFile = File(...),
     mapping: str = Form(...),
     db: Session = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ):
+    # Check Content-Length header before reading body
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_FILE_BYTES:
+                raise HTTPException(status_code=413, detail="File exceeds 10MB limit")
+        except ValueError:
+            pass
+
+    # Validate branch exists
+    branch = db.get(Branch, branch_id)
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch not found")
+
     raw = await file.read()
     if len(raw) > MAX_FILE_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds 10MB limit")
