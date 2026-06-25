@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AnimatedCounter from "@/components/AnimatedCounter";
 import {
   Branch,
   ForecastPoint,
@@ -67,6 +68,21 @@ const INSIGHTS_SHOWCASE = [
   "⚠️ Cheese Slices are overstocked — reduce ordering for the next 2 weeks to free up locked capital.",
 ];
 
+const TOP_SELLERS_SHOWCASE = [
+  { rank: 1, item: "Classic Burger", units: 482 },
+  { rank: 2, item: "Margherita Pizza", units: 401 },
+  { rank: 3, item: "Chicken Wings", units: 356 },
+  { rank: 4, item: "Iced Latte", units: 298 },
+  { rank: 5, item: "Caesar Salad", units: 211 },
+];
+const TOP_SELLERS_MAX = Math.max(...TOP_SELLERS_SHOWCASE.map((s) => s.units));
+
+function getBranchStatus(now: Date): { label: string; open: boolean } {
+  const hour = now.getHours();
+  const open = hour >= 9 && hour < 23;
+  return { label: open ? "Open Now" : "Closed", open };
+}
+
 function heatColor(value: number) {
   if (value < 40) return "#1e293b";
   if (value < 60) return "#3730a3";
@@ -87,6 +103,7 @@ export default function DashboardPage() {
   const [accuracy, setAccuracy] = useState<{ mae_pct: number | null; rmse_pct: number | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -95,6 +112,12 @@ export default function DashboardPage() {
     }
     refreshBranches();
   }, [router]);
+
+  useEffect(() => {
+    setNow(new Date());
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function refreshBranches() {
     try {
@@ -185,12 +208,28 @@ export default function DashboardPage() {
             <p className="text-xs text-slate-400">AI-Powered Dashboard</p>
           </div>
         </div>
-        <button
-          onClick={handleLogout}
-          className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/5"
-        >
-          Log Out
-        </button>
+        <div className="flex items-center gap-4">
+          {now && (
+            <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 sm:flex">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  getBranchStatus(now).open ? "bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.6)]" : "bg-rose-400"
+                }`}
+              />
+              <span className="font-medium">{getBranchStatus(now).label}</span>
+              <span className="text-slate-500">·</span>
+              <span suppressHydrationWarning>
+                {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/5"
+          >
+            Log Out
+          </button>
+        </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-6 py-6">
@@ -208,7 +247,9 @@ export default function DashboardPage() {
               className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
             >
               <p className="text-xs text-slate-400">{kpi.label}</p>
-              <p className="mt-1 text-2xl font-bold text-white">{kpi.value}</p>
+              <p className="mt-1 text-2xl font-bold text-white">
+                <AnimatedCounter value={kpi.value} />
+              </p>
               <p className={`mt-1 text-xs font-medium ${kpi.up ? "text-emerald-400" : "text-rose-400"}`}>
                 {kpi.delta}
               </p>
@@ -226,13 +267,26 @@ export default function DashboardPage() {
                   <li key={b.id}>
                     <button
                       onClick={() => setSelectedBranch(b.id)}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
                         selectedBranch === b.id
                           ? "bg-indigo-500/20 font-semibold text-indigo-300 ring-1 ring-indigo-400/40"
                           : "text-slate-300 hover:bg-white/5"
                       }`}
                     >
-                      {b.name} <span className="text-slate-500">— {b.location}</span>
+                      <span>
+                        {b.name} <span className="text-slate-500">— {b.location}</span>
+                      </span>
+                      {now && (
+                        <span
+                          className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            getBranchStatus(now).open
+                              ? "bg-emerald-500/15 text-emerald-300"
+                              : "bg-rose-500/15 text-rose-300"
+                          }`}
+                        >
+                          {getBranchStatus(now).label}
+                        </span>
+                      )}
                     </button>
                   </li>
                 ))}
@@ -319,6 +373,43 @@ export default function DashboardPage() {
               <p className="mt-2 text-[11px] text-slate-500">* Illustrative placement — live data wires in a later task</p>
             </section>
           </div>
+
+          {/* Top Sellers */}
+          <section>
+            <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-white">
+              <span>🏆</span> Top-Selling Items
+            </h2>
+            <p className="mb-4 text-xs text-slate-500">* Showcase data — live aggregation ships in a later task</p>
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
+              <ul className="space-y-3">
+                {TOP_SELLERS_SHOWCASE.map((s) => (
+                  <li key={s.rank} className="flex items-center gap-3">
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        s.rank === 1
+                          ? "bg-amber-400/20 text-amber-300"
+                          : s.rank === 2
+                          ? "bg-slate-400/20 text-slate-300"
+                          : s.rank === 3
+                          ? "bg-orange-400/20 text-orange-300"
+                          : "bg-white/5 text-slate-500"
+                      }`}
+                    >
+                      {s.rank}
+                    </span>
+                    <span className="w-36 shrink-0 text-sm text-slate-200">{s.item}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
+                      <div
+                        className="h-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-400"
+                        style={{ width: `${(s.units / TOP_SELLERS_MAX) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-14 shrink-0 text-right text-xs text-slate-400">{s.units} sold</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
 
           {/* Forecast */}
           <section>
