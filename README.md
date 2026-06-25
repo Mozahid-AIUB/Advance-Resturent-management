@@ -54,6 +54,18 @@ docker compose up --build
 
 Starts a Postgres 16 container and the FastAPI backend on port 8000. Run the frontend separately with `npm run dev`.
 
+## Enabling live DeepSeek AI insights
+
+Without an OpenRouter API key, the "Generate Weekly Summary" feature still works end-to-end but returns a deterministic rule-based summary instead of an LLM-generated one. To enable the real model:
+
+1. Create a free account at [openrouter.ai](https://openrouter.ai) and generate an API key.
+2. In `backend/.env`, set:
+   ```
+   OPENROUTER_API_KEY=sk-or-v1-...
+   OPENROUTER_MODEL=deepseek/deepseek-chat-v3-0324:free
+   ```
+3. Restart the backend. The next "Generate Weekly Summary" click will call DeepSeek; on any API error it still falls back to the rule-based summary automatically.
+
 ## Project structure
 
 ```
