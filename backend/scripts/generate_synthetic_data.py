@@ -1,5 +1,6 @@
 import os
 import random
+import zlib
 from datetime import date, timedelta
 
 import pandas as pd
@@ -71,7 +72,7 @@ if __name__ == "__main__":
     start = date.today() - timedelta(days=365)
 
     for branch_name, base_revenue in branches:
-        df = generate_branch_sales(branch_name, start, 365, base_revenue, seed=hash(branch_name) % 1000)
+        df = generate_branch_sales(branch_name, start, 365, base_revenue, seed=zlib.crc32(branch_name.encode()) % 1000)
         path = os.path.join(output_dir, f"{branch_name}.csv")
         df.to_csv(path, index=False)
         print(f"Wrote {len(df)} rows to {path}")
