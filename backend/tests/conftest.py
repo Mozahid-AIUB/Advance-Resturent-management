@@ -14,10 +14,8 @@ from app.main import app
 
 
 @pytest.fixture
-def db_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(engine)
-    TestingSessionLocal = sessionmaker(bind=engine)
+def db_session(api_engine):
+    TestingSessionLocal = sessionmaker(bind=api_engine)
     session = TestingSessionLocal()
     try:
         yield session
