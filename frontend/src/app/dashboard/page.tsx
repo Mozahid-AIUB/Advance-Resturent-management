@@ -6,15 +6,19 @@ import AnimatedCounter from "@/components/AnimatedCounter";
 import {
   Branch,
   ForecastPoint,
+  HeatmapCell,
   InsightContent,
   InventoryAlert,
+  KpiSummary,
   ShiftRecommendation,
   clearToken,
   createBranch,
   generateForecast,
   generateWeeklyInsight,
   getForecastAccuracy,
+  getHeatmap,
   getInventoryAlerts,
+  getKpis,
   getStaffing,
   getToken,
   listBranches,
@@ -114,6 +118,8 @@ export default function DashboardPage() {
   const [staffing, setStaffing] = useState<ShiftRecommendation[] | null>(null);
   const [insight, setInsight] = useState<InsightContent | null>(null);
   const [insightBusy, setInsightBusy] = useState(false);
+  const [kpis, setKpis] = useState<KpiSummary | null>(null);
+  const [heatmap, setHeatmap] = useState<HeatmapCell[] | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -132,6 +138,17 @@ export default function DashboardPage() {
     getStaffing(selectedBranch, today)
       .then(setStaffing)
       .catch(() => setStaffing(null));
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    const startDate = start.toISOString().slice(0, 10);
+    const endDate = end.toISOString().slice(0, 10);
+    getKpis(selectedBranch, startDate, endDate)
+      .then(setKpis)
+      .catch(() => setKpis(null));
+    getHeatmap(selectedBranch, startDate, endDate)
+      .then(setHeatmap)
+      .catch(() => setHeatmap(null));
   }, [selectedBranch]);
 
   async function handleGenerateInsight() {
@@ -275,21 +292,42 @@ export default function DashboardPage() {
 
         {/* KPI cards */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {KPI_SHOWCASE.map((kpi) => (
-            <div
-              key={kpi.label}
-              className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
-            >
-              <p className="text-xs text-slate-400">{kpi.label}</p>
-              <p className="mt-1 text-2xl font-bold text-white">
-                <AnimatedCounter value={kpi.value} />
-              </p>
-              <p className={`mt-1 text-xs font-medium ${kpi.up ? "text-emerald-400" : "text-rose-400"}`}>
-                {kpi.delta}
-              </p>
-            </div>
-          ))}
+          {kpis
+            ? [
+                { label: "7-Day Revenue", value: `$${kpis.total_revenue.toFixed(2)}`, delta: "Live", up: true },
+                { label: "Order Count", value: String(kpis.order_count), delta: "Live", up: true },
+                { label: "Avg Order Value", value: `$${kpis.average_order_value.toFixed(2)}`, delta: "Live", up: true },
+                { label: "Active Branches", value: String(branches.length), delta: "Live", up: true },
+              ].map((kpi) => (
+                <div
+                  key={kpi.label}
+                  className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
+                >
+                  <p className="text-xs text-slate-400">{kpi.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-white">
+                    <AnimatedCounter value={kpi.value} />
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-emerald-400">{kpi.delta}</p>
+                </div>
+              ))
+            : KPI_SHOWCASE.map((kpi) => (
+                <div
+                  key={kpi.label}
+                  className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
+                >
+                  <p className="text-xs text-slate-400">{kpi.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-white">
+                    <AnimatedCounter value={kpi.value} />
+                  </p>
+                  <p className={`mt-1 text-xs font-medium ${kpi.up ? "text-emerald-400" : "text-rose-400"}`}>
+                    {kpi.delta}
+                  </p>
+                </div>
+              ))}
         </div>
+        <p className="mb-4 -mt-3 text-xs text-slate-500">
+          {kpis ? "Live totals — last 7 days" : "* Showcase data — select a branch with sales history to see live totals"}
+        </p>
 
         <div className="space-y-10">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -377,34 +415,55 @@ export default function DashboardPage() {
               )}
             </section>
 
-            {/* Peak hour heatmap (showcase) */}
+            {/* Peak hour heatmap */}
             <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
               <h2 className="mb-3 text-lg font-semibold text-white">Peak Hour Heatmap</h2>
-              <div className="space-y-1.5">
-                {HEATMAP_DAYS.map((day, d) => (
-                  <div key={day} className="flex items-center gap-1.5">
-                    <span className="w-9 text-[11px] text-slate-400">{day}</span>
-                    <div className="flex flex-1 gap-1">
-                      {HEATMAP_HOURS.map((hour, h) => (
-                        <div
-                          key={hour}
-                          title={`${day} ${hour}: ${HEATMAP_DATA[d][h]} orders`}
-                          className="h-5 flex-1 rounded-sm"
-                          style={{ backgroundColor: heatColor(HEATMAP_DATA[d][h]) }}
-                        />
+              {(() => {
+                const grid: number[][] = heatmap && heatmap.length > 0
+                  ? HEATMAP_DAYS.map((_, d) =>
+                      HEATMAP_HOURS.map((_, h) => {
+                        const hour = [10, 12, 14, 16, 18, 20, 22][h];
+                        const cell = heatmap.find((c) => c.day_of_week === d && c.hour === hour);
+                        return cell ? cell.revenue : 0;
+                      })
+                    )
+                  : HEATMAP_DATA;
+                const max = Math.max(1, ...grid.flat());
+                return (
+                  <div className="space-y-1.5">
+                    {HEATMAP_DAYS.map((day, d) => (
+                      <div key={day} className="flex items-center gap-1.5">
+                        <span className="w-9 text-[11px] text-slate-400">{day}</span>
+                        <div className="flex flex-1 gap-1">
+                          {HEATMAP_HOURS.map((hour, h) => {
+                            const value = heatmap && heatmap.length > 0 ? (grid[d][h] / max) * 100 : grid[d][h];
+                            return (
+                              <div
+                                key={hour}
+                                title={`${day} ${hour}: ${heatmap && heatmap.length > 0 ? `$${grid[d][h].toFixed(2)}` : `${grid[d][h]} orders`}`}
+                                className="h-5 flex-1 rounded-sm"
+                                style={{ backgroundColor: heatColor(value) }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex gap-1.5 pl-9 pt-1">
+                      {HEATMAP_HOURS.map((hour) => (
+                        <span key={hour} className="flex-1 text-center text-[10px] text-slate-500">
+                          {hour}
+                        </span>
                       ))}
                     </div>
                   </div>
-                ))}
-                <div className="flex gap-1.5 pl-9 pt-1">
-                  {HEATMAP_HOURS.map((hour) => (
-                    <span key={hour} className="flex-1 text-center text-[10px] text-slate-500">
-                      {hour}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <p className="mt-2 text-[11px] text-slate-500">* Illustrative placement — live data wires in a later task</p>
+                );
+              })()}
+              <p className="mt-2 text-[11px] text-slate-500">
+                {heatmap && heatmap.length > 0
+                  ? "Live revenue by day/hour — last 7 days"
+                  : "* Showcase data — live heatmap appears once sales history exists"}
+              </p>
             </section>
           </div>
 
