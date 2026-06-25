@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     jwt_secret: str
     openrouter_api_key: str = ""
     openrouter_model: str = "deepseek/deepseek-chat-v3-0324:free"
+    frontend_origin: str = "http://localhost:3000"
 
 
 @lru_cache
