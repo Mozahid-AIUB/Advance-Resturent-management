@@ -45,3 +45,12 @@ app.include_router(dashboard_router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/")
+def root():
+    return {
+        "name": "Restaurant Analytics API",
+        "docs": "/docs",
+        "health": "/health",
+    }
