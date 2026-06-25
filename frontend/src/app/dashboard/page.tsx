@@ -29,16 +29,6 @@ import {
   YAxis,
 } from "recharts";
 
-type Tab = "overview" | "forecast" | "inventory" | "staffing" | "insights";
-
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "overview", label: "Overview", icon: "📊" },
-  { id: "forecast", label: "Forecast", icon: "📈" },
-  { id: "inventory", label: "Inventory", icon: "📦" },
-  { id: "staffing", label: "Staffing", icon: "👥" },
-  { id: "insights", label: "AI Insights", icon: "✨" },
-];
-
 // Showcase data — illustrative until the live backend features (Tasks 11-16) are wired up
 const KPI_SHOWCASE = [
   { label: "Today's Revenue", value: "$4,820", delta: "+12.4%", up: true },
@@ -87,7 +77,6 @@ function heatColor(value: number) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [newBranchName, setNewBranchName] = useState("");
@@ -227,25 +216,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 flex flex-wrap gap-2 border-b border-white/10 pb-3">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                activeTab === tab.id
-                  ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
-                  : "bg-white/5 text-slate-300 hover:bg-white/10"
-              }`}
-            >
-              <span className="mr-1.5">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === "overview" && (
+        <div className="space-y-10">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Branches */}
             <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
@@ -348,51 +319,56 @@ export default function DashboardPage() {
               <p className="mt-2 text-[11px] text-slate-500">* Illustrative placement — live data wires in a later task</p>
             </section>
           </div>
-        )}
 
-        {activeTab === "forecast" && (
-          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-white">Revenue Forecast (Prophet AI)</h2>
-              <button
-                onClick={handleForecast}
-                disabled={busy || !selectedBranch}
-                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:bg-amber-400 disabled:opacity-50"
-              >
-                Generate 14-Day Forecast
-              </button>
+          {/* Forecast */}
+          <section>
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-white">
+              <span>📈</span> Revenue Forecast (Prophet AI)
+            </h2>
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-slate-400">14-day projection generated from uploaded sales history</p>
+                <button
+                  onClick={handleForecast}
+                  disabled={busy || !selectedBranch}
+                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:bg-amber-400 disabled:opacity-50"
+                >
+                  Generate 14-Day Forecast
+                </button>
+              </div>
+              {accuracy && (
+                <p className="mb-3 text-xs text-slate-400">
+                  MAE%: {accuracy.mae_pct?.toFixed(2) ?? "N/A"} · RMSE%: {accuracy.rmse_pct?.toFixed(2) ?? "N/A"}
+                </p>
+              )}
+              {forecast.length > 0 ? (
+                <ResponsiveContainer width="100%" height={360}>
+                  <LineChart data={forecast}>
+                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                    <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                    <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
+                    <Legend />
+                    <Line type="monotone" dataKey="predicted_revenue" stroke="#818cf8" name="Predicted Revenue" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="lower_bound" stroke="#475569" name="Lower Bound" strokeDasharray="4 4" dot={false} />
+                    <Line type="monotone" dataKey="upper_bound" stroke="#475569" name="Upper Bound" strokeDasharray="4 4" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="py-12 text-center text-sm text-slate-500">
+                  Click the button above to generate a forecast for a branch
+                </p>
+              )}
             </div>
-            {accuracy && (
-              <p className="mb-3 text-xs text-slate-400">
-                MAE%: {accuracy.mae_pct?.toFixed(2) ?? "N/A"} · RMSE%: {accuracy.rmse_pct?.toFixed(2) ?? "N/A"}
-              </p>
-            )}
-            {forecast.length > 0 ? (
-              <ResponsiveContainer width="100%" height={360}>
-                <LineChart data={forecast}>
-                  <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                  <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
-                  <Legend />
-                  <Line type="monotone" dataKey="predicted_revenue" stroke="#818cf8" name="Predicted Revenue" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="lower_bound" stroke="#475569" name="Lower Bound" strokeDasharray="4 4" dot={false} />
-                  <Line type="monotone" dataKey="upper_bound" stroke="#475569" name="Upper Bound" strokeDasharray="4 4" dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-12 text-center text-sm text-slate-500">
-                Click the button above to generate a forecast for a branch
-              </p>
-            )}
           </section>
-        )}
 
-        {activeTab === "inventory" && (
-          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
-            <h2 className="mb-1 text-lg font-semibold text-white">Inventory Intelligence</h2>
+          {/* Inventory */}
+          <section>
+            <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-white">
+              <span>📦</span> Inventory Intelligence
+            </h2>
             <p className="mb-4 text-xs text-slate-500">* Showcase data — backend service ships in a later task</p>
-            <div className="overflow-hidden rounded-lg border border-white/10">
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 shadow-sm">
               <table className="w-full text-sm">
                 <thead className="bg-white/5 text-left text-slate-400">
                   <tr>
@@ -427,66 +403,72 @@ export default function DashboardPage() {
               </table>
             </div>
           </section>
-        )}
 
-        {activeTab === "staffing" && (
-          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
-            <h2 className="mb-1 text-lg font-semibold text-white">Shift Planner</h2>
+          {/* Staffing */}
+          <section>
+            <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-white">
+              <span>👥</span> Shift Planner
+            </h2>
             <p className="mb-4 text-xs text-slate-500">* Showcase data — backend service ships in a later task</p>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={STAFFING_SHOWCASE}>
-                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
-                <XAxis dataKey="shift" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
-                <Legend />
-                <Bar dataKey="recommended" name="Recommended" radius={[6, 6, 0, 0]}>
-                  {STAFFING_SHOWCASE.map((_, i) => (
-                    <Cell key={i} fill="#818cf8" />
-                  ))}
-                </Bar>
-                <Bar dataKey="scheduled" name="Scheduled" radius={[6, 6, 0, 0]}>
-                  {STAFFING_SHOWCASE.map((_, i) => (
-                    <Cell key={i} fill="#475569" />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={STAFFING_SHOWCASE}>
+                  <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                  <XAxis dataKey="shift" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
+                  <Legend />
+                  <Bar dataKey="recommended" name="Recommended" radius={[6, 6, 0, 0]}>
+                    {STAFFING_SHOWCASE.map((_, i) => (
+                      <Cell key={i} fill="#818cf8" />
+                    ))}
+                  </Bar>
+                  <Bar dataKey="scheduled" name="Scheduled" radius={[6, 6, 0, 0]}>
+                    {STAFFING_SHOWCASE.map((_, i) => (
+                      <Cell key={i} fill="#475569" />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </section>
-        )}
 
-        {activeTab === "insights" && (
-          <section className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
-            <h2 className="mb-1 text-lg font-semibold text-white">✨ AI-Generated Insights</h2>
+          {/* Insights */}
+          <section>
+            <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-white">
+              <span>✨</span> AI-Generated Insights
+            </h2>
             <p className="mb-4 text-xs text-slate-500">
               * Showcase data — DeepSeek (via OpenRouter) integration ships in a later task
             </p>
-            <div className="space-y-3">
-              {INSIGHTS_SHOWCASE.map((insight, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-4 py-3 text-sm text-slate-200"
-                >
-                  {insight}
-                </div>
-              ))}
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
+              <div className="space-y-3">
+                {INSIGHTS_SHOWCASE.map((insight, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-4 py-3 text-sm text-slate-200"
+                  >
+                    {insight}
+                  </div>
+                ))}
+              </div>
+              <ResponsiveContainer width="100%" height={180} className="mt-5">
+                <AreaChart data={STAFFING_SHOWCASE.map((s, i) => ({ name: s.shift, value: 40 + i * 25 }))}>
+                  <defs>
+                    <linearGradient id="insightFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                  <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
+                  <Area type="monotone" dataKey="value" stroke="#818cf8" fill="url(#insightFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
-            <ResponsiveContainer width="100%" height={180} className="mt-5">
-              <AreaChart data={STAFFING_SHOWCASE.map((s, i) => ({ name: s.shift, value: 40 + i * 25 }))}>
-                <defs>
-                  <linearGradient id="insightFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#818cf8" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
-                <Area type="monotone" dataKey="value" stroke="#818cf8" fill="url(#insightFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
           </section>
-        )}
+        </div>
       </div>
     </div>
   );
