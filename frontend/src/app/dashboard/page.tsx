@@ -87,6 +87,23 @@ const TOP_SELLERS_SHOWCASE = [
 ];
 const TOP_SELLERS_MAX = Math.max(...TOP_SELLERS_SHOWCASE.map((s) => s.units));
 
+const OPS_SNAPSHOT = [
+  { label: "Avg Prep Time", value: "18 min", trend: "+2.1%", tone: "up" },
+  { label: "Repeat Orders", value: "68%", trend: "+6.4%", tone: "up" },
+  { label: "Food Waste", value: "4.8%", trend: "-1.3%", tone: "down" },
+  { label: "Peak Demand", value: "7:00 PM", trend: "Busy", tone: "neutral" },
+];
+
+const REVENUE_TREND = [
+  { day: "Mon", revenue: 1200 },
+  { day: "Tue", revenue: 1450 },
+  { day: "Wed", revenue: 1380 },
+  { day: "Thu", revenue: 1750 },
+  { day: "Fri", revenue: 2140 },
+  { day: "Sat", revenue: 2460 },
+  { day: "Sun", revenue: 2310 },
+];
+
 function getBranchStatus(now: Date): { label: string; open: boolean } {
   const hour = now.getHours();
   const open = hour >= 9 && hour < 23;
@@ -263,9 +280,8 @@ export default function DashboardPage() {
           {now && (
             <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 sm:flex">
               <span
-                className={`h-2 w-2 rounded-full ${
-                  getBranchStatus(now).open ? "bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.6)]" : "bg-rose-400"
-                }`}
+                className={`h-2 w-2 rounded-full ${getBranchStatus(now).open ? "bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.6)]" : "bg-rose-400"
+                  }`}
               />
               <span className="font-medium">{getBranchStatus(now).label}</span>
               <span className="text-slate-500">·</span>
@@ -290,40 +306,109 @@ export default function DashboardPage() {
           </div>
         )}
 
+        <section className="mb-6 rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 p-5 shadow-xl shadow-indigo-950/20">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Operations</p>
+              <h2 className="mt-1 text-xl font-bold text-white">Live Service Snapshot</h2>
+            </div>
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-300">
+              Updated Now
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {OPS_SNAPSHOT.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-xl border border-white/10 bg-slate-950/50 p-4"
+              >
+                <p className="text-xs text-slate-400">{item.label}</p>
+                <div className="mt-2 flex items-end justify-between gap-2">
+                  <span className="text-2xl font-bold text-white">{item.value}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${item.tone === "up"
+                      ? "bg-emerald-500/15 text-emerald-300"
+                      : item.tone === "down"
+                        ? "bg-rose-500/15 text-rose-300"
+                        : "bg-sky-500/15 text-sky-300"
+                      }`}
+                  >
+                    {item.trend}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/60 p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-sky-300">Revenue</p>
+              <h2 className="mt-1 text-xl font-bold text-white">Weekly Sales Trend</h2>
+            </div>
+            <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-medium text-amber-300">
+              Hardcoded View
+            </span>
+          </div>
+
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={REVENUE_TREND}>
+                <defs>
+                  <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.7} />
+                    <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                <Tooltip
+                  formatter={(value) => [`$${Number(value ?? 0)}`, "Revenue"]}
+                  contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#38bdf8" fill="url(#revenueFill)" strokeWidth={3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
         {/* KPI cards */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {kpis
             ? [
-                { label: "7-Day Revenue", value: `$${kpis.total_revenue.toFixed(2)}`, delta: "Live", up: true },
-                { label: "Order Count", value: String(kpis.order_count), delta: "Live", up: true },
-                { label: "Avg Order Value", value: `$${kpis.average_order_value.toFixed(2)}`, delta: "Live", up: true },
-                { label: "Active Branches", value: String(branches.length), delta: "Live", up: true },
-              ].map((kpi) => (
-                <div
-                  key={kpi.label}
-                  className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
-                >
-                  <p className="text-xs text-slate-400">{kpi.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-white">
-                    <AnimatedCounter value={kpi.value} />
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-emerald-400">{kpi.delta}</p>
-                </div>
-              ))
+              { label: "7-Day Revenue", value: `$${kpis.total_revenue.toFixed(2)}`, delta: "Live", up: true },
+              { label: "Order Count", value: String(kpis.order_count), delta: "Live", up: true },
+              { label: "Avg Order Value", value: `$${kpis.average_order_value.toFixed(2)}`, delta: "Live", up: true },
+              { label: "Active Branches", value: String(branches.length), delta: "Live", up: true },
+            ].map((kpi) => (
+              <div
+                key={kpi.label}
+                className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
+              >
+                <p className="text-xs text-slate-400">{kpi.label}</p>
+                <p className="mt-1 text-2xl font-bold text-white">
+                  <AnimatedCounter value={kpi.value} />
+                </p>
+                <p className="mt-1 text-xs font-medium text-emerald-400">{kpi.delta}</p>
+              </div>
+            ))
             : KPI_SHOWCASE.map((kpi) => (
-                <div
-                  key={kpi.label}
-                  className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
-                >
-                  <p className="text-xs text-slate-400">{kpi.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-white">
-                    <AnimatedCounter value={kpi.value} />
-                  </p>
-                  <p className={`mt-1 text-xs font-medium ${kpi.up ? "text-emerald-400" : "text-rose-400"}`}>
-                    {kpi.delta}
-                  </p>
-                </div>
-              ))}
+              <div
+                key={kpi.label}
+                className="rounded-xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 shadow-lg"
+              >
+                <p className="text-xs text-slate-400">{kpi.label}</p>
+                <p className="mt-1 text-2xl font-bold text-white">
+                  <AnimatedCounter value={kpi.value} />
+                </p>
+                <p className={`mt-1 text-xs font-medium ${kpi.up ? "text-emerald-400" : "text-rose-400"}`}>
+                  {kpi.delta}
+                </p>
+              </div>
+            ))}
         </div>
         <p className="mb-4 -mt-3 text-xs text-slate-500">
           {kpis ? "Live totals — last 7 days" : "* Showcase data — select a branch with sales history to see live totals"}
@@ -339,22 +424,20 @@ export default function DashboardPage() {
                   <li key={b.id}>
                     <button
                       onClick={() => setSelectedBranch(b.id)}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
-                        selectedBranch === b.id
-                          ? "bg-indigo-500/20 font-semibold text-indigo-300 ring-1 ring-indigo-400/40"
-                          : "text-slate-300 hover:bg-white/5"
-                      }`}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${selectedBranch === b.id
+                        ? "bg-indigo-500/20 font-semibold text-indigo-300 ring-1 ring-indigo-400/40"
+                        : "text-slate-300 hover:bg-white/5"
+                        }`}
                     >
                       <span>
                         {b.name} <span className="text-slate-500">— {b.location}</span>
                       </span>
                       {now && (
                         <span
-                          className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            getBranchStatus(now).open
-                              ? "bg-emerald-500/15 text-emerald-300"
-                              : "bg-rose-500/15 text-rose-300"
-                          }`}
+                          className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${getBranchStatus(now).open
+                            ? "bg-emerald-500/15 text-emerald-300"
+                            : "bg-rose-500/15 text-rose-300"
+                            }`}
                         >
                           {getBranchStatus(now).label}
                         </span>
@@ -421,12 +504,12 @@ export default function DashboardPage() {
               {(() => {
                 const grid: number[][] = heatmap && heatmap.length > 0
                   ? HEATMAP_DAYS.map((_, d) =>
-                      HEATMAP_HOURS.map((_, h) => {
-                        const hour = [10, 12, 14, 16, 18, 20, 22][h];
-                        const cell = heatmap.find((c) => c.day_of_week === d && c.hour === hour);
-                        return cell ? cell.revenue : 0;
-                      })
-                    )
+                    HEATMAP_HOURS.map((_, h) => {
+                      const hour = [10, 12, 14, 16, 18, 20, 22][h];
+                      const cell = heatmap.find((c) => c.day_of_week === d && c.hour === hour);
+                      return cell ? cell.revenue : 0;
+                    })
+                  )
                   : HEATMAP_DATA;
                 const max = Math.max(1, ...grid.flat());
                 return (
@@ -478,15 +561,14 @@ export default function DashboardPage() {
                 {TOP_SELLERS_SHOWCASE.map((s) => (
                   <li key={s.rank} className="flex items-center gap-3">
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        s.rank === 1
-                          ? "bg-amber-400/20 text-amber-300"
-                          : s.rank === 2
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${s.rank === 1
+                        ? "bg-amber-400/20 text-amber-300"
+                        : s.rank === 2
                           ? "bg-slate-400/20 text-slate-300"
                           : s.rank === 3
-                          ? "bg-orange-400/20 text-orange-300"
-                          : "bg-white/5 text-slate-500"
-                      }`}
+                            ? "bg-orange-400/20 text-orange-300"
+                            : "bg-white/5 text-slate-500"
+                        }`}
                     >
                       {s.rank}
                     </span>
@@ -568,43 +650,41 @@ export default function DashboardPage() {
                 <tbody>
                   {inventoryAlerts && inventoryAlerts.length > 0
                     ? inventoryAlerts.map((row) => (
-                        <tr key={row.sku} className="border-t border-white/5">
-                          <td className="px-4 py-2.5 text-slate-200">{row.name}</td>
-                          <td className="px-4 py-2.5">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                row.alert_type === "stockout_risk"
-                                  ? "bg-rose-500/15 text-rose-300"
-                                  : "bg-sky-500/15 text-sky-300"
+                      <tr key={row.sku} className="border-t border-white/5">
+                        <td className="px-4 py-2.5 text-slate-200">{row.name}</td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${row.alert_type === "stockout_risk"
+                              ? "bg-rose-500/15 text-rose-300"
+                              : "bg-sky-500/15 text-sky-300"
                               }`}
-                            >
-                              {row.alert_type === "stockout_risk" ? "Stockout Risk" : "Overstock"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-slate-300">{row.days_to_run_out ?? "—"}</td>
-                        </tr>
-                      ))
+                          >
+                            {row.alert_type === "stockout_risk" ? "Stockout Risk" : "Overstock"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-300">{row.days_to_run_out ?? "—"}</td>
+                      </tr>
+                    ))
                     : INVENTORY_SHOWCASE.map((row) => (
-                        <tr key={row.item} className="border-t border-white/5">
-                          <td className="px-4 py-2.5 text-slate-200">{row.item}</td>
-                          <td className="px-4 py-2.5">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                row.level === "danger"
-                                  ? "bg-rose-500/15 text-rose-300"
-                                  : row.level === "warning"
-                                  ? "bg-amber-500/15 text-amber-300"
-                                  : row.level === "info"
+                      <tr key={row.item} className="border-t border-white/5">
+                        <td className="px-4 py-2.5 text-slate-200">{row.item}</td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${row.level === "danger"
+                              ? "bg-rose-500/15 text-rose-300"
+                              : row.level === "warning"
+                                ? "bg-amber-500/15 text-amber-300"
+                                : row.level === "info"
                                   ? "bg-sky-500/15 text-sky-300"
                                   : "bg-emerald-500/15 text-emerald-300"
                               }`}
-                            >
-                              {row.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-slate-300">{row.daysLeft}</td>
-                        </tr>
-                      ))}
+                          >
+                            {row.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-300">{row.daysLeft}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

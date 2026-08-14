@@ -10,17 +10,39 @@ from app.api.routes_inventory import router as inventory_router
 from app.api.routes_staffing import router as staffing_router
 from app.api.routes_insights import router as insights_router
 from app.api.routes_dashboard import router as dashboard_router
+from app.db.base import SessionLocal
+from app.db.models import User
+from app.services.auth_service import hash_password
 
 settings = get_settings()
 
 app = FastAPI(title="Restaurant Analytics API")
+allowed_origins = [
+    settings.frontend_origin,
+    "http://localhost:3000",
+    "http://localhost:3003",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3003",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list({settings.frontend_origin, "http://localhost:3000"}),
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def seed_demo_user():
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == "demo@example.com").first()
+        if existing is None:
+            db.add(User(email="demo@example.com", hashed_password=hash_password("demopass123")))
+            db.commit()
+    finally:
+        db.close()
 
 
 @app.middleware("http")

@@ -86,6 +86,10 @@ npm run dev
 
 Visit `http://localhost:3000` — it redirects to `/login` (demo credentials pre-filled) or `/dashboard` if already authenticated.
 
+Demo login credentials:
+- Email: `demo@example.com`
+- Password: `demopass123`
+
 ### 4. Docker Compose (Postgres + backend)
 
 ```bash

@@ -8,6 +8,10 @@ engine = create_engine(settings.database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+from app.db import models  # noqa: F401
+
+Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     db = SessionLocal()
